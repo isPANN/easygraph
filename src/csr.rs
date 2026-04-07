@@ -1,6 +1,11 @@
 use crate::graph::Graph;
 use crate::SimpleGraph;
 
+/// Compressed Sparse Row graph — immutable, contiguous-memory storage.
+///
+/// Built from a [`SimpleGraph`] via `From`. All neighbor data lives in a single
+/// `Vec<u32>`, indexed by a `Vec<usize>` of offsets. Zero pointer indirection
+/// per vertex, ideal for read-heavy scientific workloads.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CsrGraph {
     ne: usize,
@@ -9,34 +14,41 @@ pub struct CsrGraph {
 }
 
 impl CsrGraph {
+    /// Number of vertices.
     #[inline]
     pub fn nv(&self) -> usize {
         if self.offsets.is_empty() { 0 } else { self.offsets.len() - 1 }
     }
 
+    /// Number of edges.
     #[inline]
     pub fn ne(&self) -> usize { self.ne }
 
+    /// Whether vertex `v` exists.
     #[inline]
     pub fn has_vertex(&self, v: u32) -> bool { (v as usize) < self.nv() }
 
+    /// Whether edge `(u, v)` exists. Returns `false` for out-of-range vertices.
     pub fn has_edge(&self, u: u32, v: u32) -> bool {
         if !self.has_vertex(u) || !self.has_vertex(v) { return false; }
         self.neighbors(u).binary_search(&v).is_ok()
     }
 
+    /// Degree of vertex `v`.
     #[inline]
     pub fn degree(&self, v: u32) -> usize {
         let vi = v as usize;
         self.offsets[vi + 1] - self.offsets[vi]
     }
 
+    /// Sorted neighbor slice of vertex `v`.
     #[inline]
     pub fn neighbors(&self, v: u32) -> &[u32] {
         let vi = v as usize;
         &self.targets[self.offsets[vi]..self.offsets[vi + 1]]
     }
 
+    /// Convert back to a mutable [`SimpleGraph`].
     pub fn to_simple_graph(&self) -> SimpleGraph {
         SimpleGraph::from_csr(&self.offsets, &self.targets, self.ne)
     }
