@@ -1,10 +1,16 @@
 /// Read-only interface shared by all graph representations.
 pub trait Graph {
+    /// Number of vertices.
     fn nv(&self) -> usize;
+    /// Number of edges.
     fn ne(&self) -> usize;
+    /// Whether vertex `v` exists.
     fn has_vertex(&self, v: u32) -> bool;
+    /// Whether edge `(u, v)` exists.
     fn has_edge(&self, u: u32, v: u32) -> bool;
+    /// Degree of vertex `v`.
     fn degree(&self, v: u32) -> usize;
+    /// Sorted neighbor slice of vertex `v`.
     fn neighbors(&self, v: u32) -> &[u32];
 }
 
@@ -14,8 +20,8 @@ pub fn density(g: &impl Graph) -> f64 {
     if n < 2 {
         return 0.0;
     }
-    let max_edges = n * (n - 1) / 2;
-    g.ne() as f64 / max_edges as f64
+    let n = n as f64;
+    g.ne() as f64 / (n * (n - 1.0) / 2.0)
 }
 
 /// Sorted degree sequence (ascending).
