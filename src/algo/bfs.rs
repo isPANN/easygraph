@@ -1,12 +1,14 @@
 use std::collections::VecDeque;
 use crate::graph::Graph;
 
+/// BFS iterator from a source vertex.
 pub struct Bfs<'a, G: Graph + ?Sized> {
     graph: &'a G,
     queue: VecDeque<u32>,
     visited: Vec<bool>,
 }
 
+/// Return a BFS iterator starting from `source`.
 pub fn bfs<G: Graph>(graph: &G, source: u32) -> Bfs<'_, G> {
     let n = graph.nv();
     let mut visited = vec![false; n];
@@ -32,12 +34,15 @@ impl<'a, G: Graph + ?Sized> Iterator for Bfs<'a, G> {
     }
 }
 
+/// Whether the graph is connected (empty and single-vertex graphs are connected).
 pub fn is_connected<G: Graph>(graph: &G) -> bool {
     let n = graph.nv();
     if n <= 1 { return true; }
     bfs(graph, 0).count() == n
 }
 
+/// Assign a component label to each vertex. Labels are `0, 1, 2, ...` assigned
+/// in order of discovery. Returns a `Vec<u32>` of length `nv()`.
 pub fn connected_components<G: Graph>(graph: &G) -> Vec<u32> {
     let n = graph.nv();
     let mut labels = vec![u32::MAX; n];
