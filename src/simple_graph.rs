@@ -1,56 +1,61 @@
-use serde::de::{self, Deserializer};
-use serde::{Deserialize, Serialize};
-
 use crate::Graph;
 
 /// An undirected simple graph with sorted adjacency lists.
 ///
 /// Vertices are contiguous integers `0..nv()`. Each vertex stores a sorted
 /// `Vec<u32>` of its neighbors. This mirrors Julia's `Graphs.jl` `SimpleGraph`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SimpleGraph {
     ne: usize,
     fadjlist: Vec<Vec<u32>>,
 }
 
-/// Raw helper for deserialization — validated before becoming a `SimpleGraph`.
-#[derive(Deserialize)]
-struct SimpleGraphRaw {
-    ne: usize,
-    fadjlist: Vec<Vec<u32>>,
-}
+#[cfg(feature = "serde")]
+mod serde_impl {
+    use super::SimpleGraph;
+    use serde::de::{self, Deserializer};
+    use serde::Deserialize;
 
-impl<'de> Deserialize<'de> for SimpleGraph {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let raw = SimpleGraphRaw::deserialize(deserializer)?;
-        let n = raw.fadjlist.len();
-        let mut edge_count = 0usize;
-        for (u, nbrs) in raw.fadjlist.iter().enumerate() {
-            // Check sorted, no duplicates, no self-loops, in range
-            for (i, &v) in nbrs.iter().enumerate() {
-                if v as usize >= n {
-                    return Err(de::Error::custom("neighbor out of range"));
+    /// Raw helper for deserialization — validated before becoming a `SimpleGraph`.
+    #[derive(Deserialize)]
+    struct SimpleGraphRaw {
+        ne: usize,
+        fadjlist: Vec<Vec<u32>>,
+    }
+
+    impl<'de> Deserialize<'de> for SimpleGraph {
+        fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            let raw = SimpleGraphRaw::deserialize(deserializer)?;
+            let n = raw.fadjlist.len();
+            let mut edge_count = 0usize;
+            for (u, nbrs) in raw.fadjlist.iter().enumerate() {
+                // Check sorted, no duplicates, no self-loops, in range
+                for (i, &v) in nbrs.iter().enumerate() {
+                    if v as usize >= n {
+                        return Err(de::Error::custom("neighbor out of range"));
+                    }
+                    if v as usize == u {
+                        return Err(de::Error::custom("self-loop detected"));
+                    }
+                    if i > 0 && nbrs[i - 1] >= v {
+                        return Err(de::Error::custom("adjacency list not sorted or has duplicates"));
+                    }
+                    // Check symmetry: u must appear in v's list
+                    if raw.fadjlist[v as usize].binary_search(&(u as u32)).is_err() {
+                        return Err(de::Error::custom("asymmetric edge"));
+                    }
                 }
-                if v as usize == u {
-                    return Err(de::Error::custom("self-loop detected"));
-                }
-                if i > 0 && nbrs[i - 1] >= v {
-                    return Err(de::Error::custom("adjacency list not sorted or has duplicates"));
-                }
-                // Check symmetry: u must appear in v's list
-                if raw.fadjlist[v as usize].binary_search(&(u as u32)).is_err() {
-                    return Err(de::Error::custom("asymmetric edge"));
-                }
+                edge_count += nbrs.len();
             }
-            edge_count += nbrs.len();
+            if edge_count / 2 != raw.ne {
+                return Err(de::Error::custom("incorrect edge count"));
+            }
+            Ok(SimpleGraph {
+                ne: raw.ne,
+                fadjlist: raw.fadjlist,
+            })
         }
-        if edge_count / 2 != raw.ne {
-            return Err(de::Error::custom("incorrect edge count"));
-        }
-        Ok(SimpleGraph {
-            ne: raw.ne,
-            fadjlist: raw.fadjlist,
-        })
     }
 }
 
@@ -467,6 +472,7 @@ mod tests {
         assert!(SimpleGraph::try_from_edges(3, &[(0, 5)]).is_err());
     }
 
+    #[cfg(feature = "serde")]
     #[test]
     fn test_serde_roundtrip() {
         let g = SimpleGraph::from_edges(3, &[(0, 1), (1, 2)]);
