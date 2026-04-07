@@ -47,14 +47,18 @@ fn bench_query(c: &mut Criterion) {
         b.iter(|| g.degree_sequence())
     });
 
+    group.bench_function("degree_distribution", |b| {
+        b.iter(|| g.degree_distribution())
+    });
+
     group.finish();
 }
 
-fn bench_bfs(c: &mut Criterion) {
+fn bench_algorithms(c: &mut Criterion) {
     let g = gen::grid_2d(100, 100);
     let csr = CsrGraph::from(&g);
 
-    let mut group = c.benchmark_group("bfs");
+    let mut group = c.benchmark_group("algorithms");
 
     group.bench_function("bfs_grid_100x100_simple", |b| {
         b.iter(|| algo::bfs(black_box(&g), 0).count())
@@ -66,6 +70,18 @@ fn bench_bfs(c: &mut Criterion) {
 
     group.bench_function("connected_components_grid", |b| {
         b.iter(|| algo::connected_components(black_box(&g)))
+    });
+
+    group.bench_function("dfs_grid_100x100_simple", |b| {
+        b.iter(|| algo::dfs(black_box(&g), 0).count())
+    });
+
+    group.bench_function("dfs_grid_100x100_csr", |b| {
+        b.iter(|| algo::dfs(black_box(&csr), 0).count())
+    });
+
+    group.bench_function("shortest_path_grid_100x100", |b| {
+        b.iter(|| algo::shortest_path_lengths(black_box(&g), 0))
     });
 
     group.finish();
@@ -96,7 +112,7 @@ criterion_group!(
     benches,
     bench_construction,
     bench_query,
-    bench_bfs,
+    bench_algorithms,
     bench_csr_conversion
 );
 criterion_main!(benches);

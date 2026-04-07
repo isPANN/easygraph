@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `#![forbid(unsafe_code)]` safety guarantee.
 - Cargo.toml metadata: `repository`, `keywords`, `categories`, `rust-version`.
 - DFS iterator (`algo::dfs`).
-- Unweighted shortest path (`algo::shortest_path`).
+- Unweighted shortest path (`algo::shortest_path_lengths`).
 - `degree_distribution` on the `Graph` trait.
 - `# Examples` doc blocks on all public API methods.
 - `Send + Sync` compile-time static assertions.
