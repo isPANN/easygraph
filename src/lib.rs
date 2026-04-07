@@ -1,4 +1,5 @@
 pub mod algo;
+pub mod gen;
 pub mod io;
 mod csr;
 mod graph;
