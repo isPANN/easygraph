@@ -31,11 +31,14 @@ pub fn read_matrix_market(r: impl BufRead) -> io::Result<SimpleGraph> {
     if !banner_lower.starts_with("%%matrixmarket") {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "missing %%MatrixMarket banner"));
     }
-    if !banner_lower.contains("symmetric") {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "only symmetric format supported"));
-    }
     if !banner_lower.contains("coordinate") {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "only coordinate format supported"));
+    }
+    if !banner_lower.contains("pattern") {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "only pattern format supported"));
+    }
+    if !banner_lower.contains("symmetric") {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "only symmetric format supported"));
     }
 
     // Parse size line
@@ -74,20 +77,34 @@ pub fn read_matrix_market(r: impl BufRead) -> io::Result<SimpleGraph> {
         let col: u32 = parts.next()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "missing col"))?
             .parse().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        if parts.next().is_some() {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "extra fields in entry line (expected pattern format)"));
+        }
         if row == 0 || col == 0 {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "Matrix Market uses 1-based indices"));
         }
         edges.push((row - 1, col - 1));
     }
 
-    if edges.len() != nnz_declared {
+    // Canonicalize to (min, max) and dedup to get unique undirected edges
+    let mut canonical: Vec<(u32, u32)> = edges
+        .iter()
+        .map(|&(u, v)| if u <= v { (u, v) } else { (v, u) })
+        .collect();
+    canonical.sort_unstable();
+    canonical.dedup();
+    if canonical.len() != nnz_declared {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("declared {} entries but found {}", nnz_declared, edges.len()),
+            format!(
+                "declared {} unique entries but found {}",
+                nnz_declared,
+                canonical.len()
+            ),
         ));
     }
 
-    SimpleGraph::try_from_edges(nv, &edges)
+    SimpleGraph::try_from_edges(nv, &canonical)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
 }
 
@@ -151,6 +168,39 @@ mod tests {
     #[test]
     fn test_count_mismatch() {
         let input = b"%%MatrixMarket matrix coordinate pattern symmetric\n3 3 2\n1 2\n";
+        assert!(read_matrix_market(&input[..]).is_err());
+    }
+
+    #[test]
+    fn test_reject_real_format() {
+        let input = b"%%MatrixMarket matrix coordinate real symmetric\n3 3 1\n1 2 3.5\n";
+        assert!(read_matrix_market(&input[..]).is_err());
+    }
+
+    #[test]
+    fn test_reject_integer_format() {
+        let input = b"%%MatrixMarket matrix coordinate integer symmetric\n3 3 1\n1 2 7\n";
+        assert!(read_matrix_market(&input[..]).is_err());
+    }
+
+    #[test]
+    fn test_reject_extra_fields_in_entry() {
+        let input = b"%%MatrixMarket matrix coordinate pattern symmetric\n3 3 1\n1 2 extra\n";
+        assert!(read_matrix_market(&input[..]).is_err());
+    }
+
+    #[test]
+    fn test_duplicate_entries_accepted() {
+        // "2 1" and "1 2" are the same undirected edge — declares 1 unique
+        let input = b"%%MatrixMarket matrix coordinate pattern symmetric\n3 3 1\n2 1\n1 2\n";
+        let g = read_matrix_market(&input[..]).unwrap();
+        assert_eq!(g.ne(), 1);
+    }
+
+    #[test]
+    fn test_duplicate_entries_count_mismatch() {
+        // Declares 2 but only 1 unique after dedup
+        let input = b"%%MatrixMarket matrix coordinate pattern symmetric\n3 3 2\n2 1\n1 2\n";
         assert!(read_matrix_market(&input[..]).is_err());
     }
 }

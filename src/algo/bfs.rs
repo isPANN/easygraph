@@ -43,14 +43,27 @@ pub fn is_connected<G: Graph>(graph: &G) -> bool {
 
 /// Assign a component label to each vertex. Labels are `0, 1, 2, ...` assigned
 /// in order of discovery. Returns a `Vec<u32>` of length `nv()`.
+///
+/// Uses a single shared visited array and queue to avoid per-component
+/// allocation overhead.
 pub fn connected_components<G: Graph>(graph: &G) -> Vec<u32> {
     let n = graph.nv();
     let mut labels = vec![u32::MAX; n];
+    let mut queue = VecDeque::new();
     let mut component = 0u32;
     for start in 0..n as u32 {
-        if labels[start as usize] != u32::MAX { continue; }
-        for v in bfs(graph, start) {
-            labels[v as usize] = component;
+        if labels[start as usize] != u32::MAX {
+            continue;
+        }
+        labels[start as usize] = component;
+        queue.push_back(start);
+        while let Some(u) = queue.pop_front() {
+            for &v in graph.neighbors(u) {
+                if labels[v as usize] == u32::MAX {
+                    labels[v as usize] = component;
+                    queue.push_back(v);
+                }
+            }
         }
         component += 1;
     }

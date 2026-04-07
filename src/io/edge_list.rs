@@ -62,13 +62,24 @@ pub fn read_edge_list(r: impl BufRead) -> io::Result<SimpleGraph> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         edges.push((u, v));
     }
-    if edges.len() != ne_declared {
+    // Canonicalize to (min, max) and dedup to get unique undirected edges
+    let mut canonical: Vec<(u32, u32)> = edges
+        .iter()
+        .map(|&(u, v)| if u <= v { (u, v) } else { (v, u) })
+        .collect();
+    canonical.sort_unstable();
+    canonical.dedup();
+    if canonical.len() != ne_declared {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("declared {} edges but found {}", ne_declared, edges.len()),
+            format!(
+                "declared {} unique edges but found {}",
+                ne_declared,
+                canonical.len()
+            ),
         ));
     }
-    SimpleGraph::try_from_edges(nv, &edges)
+    SimpleGraph::try_from_edges(nv, &canonical)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
 }
 
@@ -124,6 +135,21 @@ mod tests {
     #[test]
     fn test_read_count_mismatch_error() {
         let input = b"3 2\n0 1\n";
+        assert!(read_edge_list(&input[..]).is_err());
+    }
+
+    #[test]
+    fn test_read_duplicate_edges() {
+        // "0 1" and "1 0" are the same undirected edge — declares 1 unique edge
+        let input = b"3 1\n0 1\n1 0\n";
+        let g = read_edge_list(&input[..]).unwrap();
+        assert_eq!(g.ne(), 1);
+    }
+
+    #[test]
+    fn test_read_duplicate_edges_count_mismatch() {
+        // Declares 2 edges but only 1 unique after canonicalization
+        let input = b"3 2\n0 1\n1 0\n";
         assert!(read_edge_list(&input[..]).is_err());
     }
 }

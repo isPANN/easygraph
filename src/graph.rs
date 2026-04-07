@@ -9,26 +9,42 @@ pub trait Graph {
     /// Whether edge `(u, v)` exists.
     fn has_edge(&self, u: u32, v: u32) -> bool;
     /// Degree of vertex `v`.
+    ///
+    /// # Panics
+    /// Panics if `v` is out of range. Use `has_vertex` to check first.
     fn degree(&self, v: u32) -> usize;
     /// Sorted neighbor slice of vertex `v`.
+    ///
+    /// # Panics
+    /// Panics if `v` is out of range. Use `has_vertex` to check first.
     fn neighbors(&self, v: u32) -> &[u32];
+
+    /// Graph density: `ne / (nv choose 2)`. Returns 0.0 for graphs with < 2 vertices.
+    fn density(&self) -> f64 {
+        let n = self.nv();
+        if n < 2 {
+            return 0.0;
+        }
+        let n = n as f64;
+        self.ne() as f64 / (n * (n - 1.0) / 2.0)
+    }
+
+    /// Sorted degree sequence (ascending).
+    fn degree_sequence(&self) -> Vec<usize> {
+        let mut seq: Vec<usize> = (0..self.nv() as u32).map(|v| self.degree(v)).collect();
+        seq.sort_unstable();
+        seq
+    }
 }
 
 /// Graph density: `ne / (nv choose 2)`. Returns 0.0 for graphs with < 2 vertices.
 pub fn density(g: &impl Graph) -> f64 {
-    let n = g.nv();
-    if n < 2 {
-        return 0.0;
-    }
-    let n = n as f64;
-    g.ne() as f64 / (n * (n - 1.0) / 2.0)
+    g.density()
 }
 
 /// Sorted degree sequence (ascending).
 pub fn degree_sequence(g: &impl Graph) -> Vec<usize> {
-    let mut seq: Vec<usize> = (0..g.nv() as u32).map(|v| g.degree(v)).collect();
-    seq.sort_unstable();
-    seq
+    g.degree_sequence()
 }
 
 #[cfg(test)]
@@ -77,5 +93,13 @@ mod tests {
     fn test_degree_sequence() {
         let g = SimpleGraph::from_edges(4, &[(0, 1), (0, 2), (0, 3), (1, 2)]);
         assert_eq!(degree_sequence(&g), vec![1, 2, 2, 3]);
+    }
+
+    #[test]
+    fn test_trait_method_syntax() {
+        let g = SimpleGraph::from_edges(4, &[(0, 1), (1, 2), (2, 3), (3, 0)]);
+        // Can use method syntax via the trait
+        assert!((g.density() - 2.0 / 3.0).abs() < 1e-10);
+        assert_eq!(g.degree_sequence(), vec![2, 2, 2, 2]);
     }
 }

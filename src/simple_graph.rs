@@ -61,7 +61,14 @@ mod serde_impl {
 
 impl SimpleGraph {
     /// Create an empty graph with `n` vertices and no edges.
+    ///
+    /// # Panics
+    /// Panics if `n > u32::MAX as usize`.
     pub fn new(n: usize) -> Self {
+        assert!(
+            n <= u32::MAX as usize,
+            "vertex count exceeds u32::MAX"
+        );
         Self {
             ne: 0,
             fadjlist: vec![vec![]; n],
@@ -73,6 +80,7 @@ impl SimpleGraph {
     /// Duplicate edges are silently collapsed. Panics on self-loops or
     /// out-of-range vertices.
     pub fn from_edges(n: usize, edges: &[(u32, u32)]) -> Self {
+        assert!(n <= u32::MAX as usize, "vertex count exceeds u32::MAX");
         let mut fadjlist: Vec<Vec<u32>> = vec![vec![]; n];
         for &(u, v) in edges {
             assert_ne!(u, v, "self-loops not allowed");
@@ -269,6 +277,9 @@ impl SimpleGraph {
     /// Fallible version of `from_edges`. Returns an error string on self-loops
     /// or out-of-range vertices.
     pub fn try_from_edges(n: usize, edges: &[(u32, u32)]) -> Result<Self, String> {
+        if n > u32::MAX as usize {
+            return Err(format!("vertex count {} exceeds u32::MAX", n));
+        }
         let mut fadjlist: Vec<Vec<u32>> = vec![vec![]; n];
         for &(u, v) in edges {
             if u == v {
