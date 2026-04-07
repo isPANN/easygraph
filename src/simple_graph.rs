@@ -260,6 +260,31 @@ impl SimpleGraph {
     }
 }
 
+impl SimpleGraph {
+    /// Fallible version of `from_edges`. Returns an error string on self-loops
+    /// or out-of-range vertices.
+    pub fn try_from_edges(n: usize, edges: &[(u32, u32)]) -> Result<Self, String> {
+        let mut fadjlist: Vec<Vec<u32>> = vec![vec![]; n];
+        for &(u, v) in edges {
+            if u == v {
+                return Err(format!("self-loop on vertex {}", u));
+            }
+            if (u as usize) >= n || (v as usize) >= n {
+                return Err(format!("vertex out of range: ({}, {}), n={}", u, v, n));
+            }
+            fadjlist[u as usize].push(v);
+            fadjlist[v as usize].push(u);
+        }
+        let mut ne = 0;
+        for list in &mut fadjlist {
+            list.sort_unstable();
+            list.dedup();
+            ne += list.len();
+        }
+        Ok(Self { ne: ne / 2, fadjlist })
+    }
+}
+
 impl Graph for SimpleGraph {
     #[inline]
     fn nv(&self) -> usize { SimpleGraph::nv(self) }
@@ -423,6 +448,23 @@ mod tests {
         assert!(sub.has_edge(1, 2));
         assert!(!sub.has_edge(0, 2));
         assert_eq!(vmap, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_try_from_edges_ok() {
+        let g = SimpleGraph::try_from_edges(3, &[(0, 1), (1, 2)]).unwrap();
+        assert_eq!(g.nv(), 3);
+        assert_eq!(g.ne(), 2);
+    }
+
+    #[test]
+    fn test_try_from_edges_self_loop() {
+        assert!(SimpleGraph::try_from_edges(3, &[(0, 0)]).is_err());
+    }
+
+    #[test]
+    fn test_try_from_edges_oob() {
+        assert!(SimpleGraph::try_from_edges(3, &[(0, 5)]).is_err());
     }
 
     #[test]
