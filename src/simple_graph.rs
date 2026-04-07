@@ -100,10 +100,19 @@ impl SimpleGraph {
     /// ```
     pub fn from_edges(n: usize, edges: &[(u32, u32)]) -> Self {
         assert!(n <= u32::MAX as usize, "vertex count exceeds u32::MAX");
-        let mut fadjlist: Vec<Vec<u32>> = vec![vec![]; n];
+        // Validate upfront — keep asserts out of the hot counting/filling loops.
         for &(u, v) in edges {
             assert_ne!(u, v, "self-loops not allowed");
             assert!((u as usize) < n && (v as usize) < n, "vertex out of range");
+        }
+        // Pre-compute degrees for capacity pre-allocation — avoids reallocs.
+        let mut deg = vec![0usize; n];
+        for &(u, v) in edges {
+            deg[u as usize] += 1;
+            deg[v as usize] += 1;
+        }
+        let mut fadjlist: Vec<Vec<u32>> = deg.iter().map(|&d| Vec::with_capacity(d)).collect();
+        for &(u, v) in edges {
             fadjlist[u as usize].push(v);
             fadjlist[v as usize].push(u);
         }
@@ -395,6 +404,31 @@ impl SimpleGraph {
 }
 
 impl SimpleGraph {
+    /// Internal constructor from pre-built sorted adjacency lists.
+    /// Caller must guarantee: lists are sorted, symmetric, no self-loops, ne is correct.
+    pub(crate) fn from_raw(ne: usize, fadjlist: Vec<Vec<u32>>) -> Self {
+        Self { ne, fadjlist }
+    }
+
+    /// Fast internal constructor for edges that are already canonical (u < v),
+    /// sorted, and unique. Skips sort+dedup. Used by generators and I/O readers.
+    pub(crate) fn from_sorted_unique_edges(n: usize, edges: &[(u32, u32)]) -> Self {
+        let mut deg = vec![0usize; n];
+        for &(u, v) in edges {
+            deg[u as usize] += 1;
+            deg[v as usize] += 1;
+        }
+        let mut fadjlist: Vec<Vec<u32>> = deg.iter().map(|&d| Vec::with_capacity(d)).collect();
+        for &(u, v) in edges {
+            fadjlist[u as usize].push(v);
+            fadjlist[v as usize].push(u);
+        }
+        Self {
+            ne: edges.len(),
+            fadjlist,
+        }
+    }
+
     pub(crate) fn from_csr(offsets: &[usize], targets: &[u32], ne: usize) -> Self {
         let n = if offsets.is_empty() {
             0
@@ -428,7 +462,7 @@ impl SimpleGraph {
         if n > u32::MAX as usize {
             return Err(format!("vertex count {} exceeds u32::MAX", n));
         }
-        let mut fadjlist: Vec<Vec<u32>> = vec![vec![]; n];
+        let mut deg = vec![0usize; n];
         for &(u, v) in edges {
             if u == v {
                 return Err(format!("self-loop on vertex {}", u));
@@ -436,6 +470,11 @@ impl SimpleGraph {
             if (u as usize) >= n || (v as usize) >= n {
                 return Err(format!("vertex out of range: ({}, {}), n={}", u, v, n));
             }
+            deg[u as usize] += 1;
+            deg[v as usize] += 1;
+        }
+        let mut fadjlist: Vec<Vec<u32>> = deg.iter().map(|&d| Vec::with_capacity(d)).collect();
+        for &(u, v) in edges {
             fadjlist[u as usize].push(v);
             fadjlist[v as usize].push(u);
         }

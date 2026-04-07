@@ -8,6 +8,7 @@ use crate::SimpleGraph;
 /// per vertex, ideal for read-heavy scientific workloads.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CsrGraph {
+    nv: usize,
     ne: usize,
     pub(crate) offsets: Vec<usize>,
     pub(crate) targets: Vec<u32>,
@@ -27,11 +28,7 @@ impl CsrGraph {
     /// ```
     #[inline]
     pub fn nv(&self) -> usize {
-        if self.offsets.is_empty() {
-            0
-        } else {
-            self.offsets.len() - 1
-        }
+        self.nv
     }
 
     /// Number of edges.
@@ -116,6 +113,22 @@ impl CsrGraph {
         &self.targets[self.offsets[vi]..self.offsets[vi + 1]]
     }
 
+    /// Internal constructor from pre-built CSR arrays.
+    /// Caller must guarantee: targets sorted per vertex, symmetric, no self-loops.
+    pub(crate) fn from_raw_parts(
+        nv: usize,
+        ne: usize,
+        offsets: Vec<usize>,
+        targets: Vec<u32>,
+    ) -> Self {
+        Self {
+            nv,
+            ne,
+            offsets,
+            targets,
+        }
+    }
+
     /// Iterator over all edges `(u, v)` with `u < v`.
     ///
     /// # Examples
@@ -147,12 +160,137 @@ impl CsrGraph {
     }
 }
 
+impl CsrGraph {
+    /// Build a CsrGraph directly from edge pairs, bypassing SimpleGraph.
+    ///
+    /// Edges must be canonical (`u < v`), sorted, and unique. This performs
+    /// only 3 heap allocations regardless of graph size.
+    ///
+    /// # Panics
+    /// Panics if edges contain self-loops or out-of-range vertices.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simple_graph::CsrGraph;
+    ///
+    /// let csr = CsrGraph::from_sorted_unique_edges(3, &[(0, 1), (1, 2)]);
+    /// assert_eq!(csr.nv(), 3);
+    /// assert_eq!(csr.ne(), 2);
+    /// ```
+    pub fn from_sorted_unique_edges(n: usize, edges: &[(u32, u32)]) -> Self {
+        // Validate upfront — keep asserts out of the hot counting/filling loops.
+        for &(u, v) in edges {
+            assert_ne!(u, v, "self-loops not allowed");
+            assert!((u as usize) < n && (v as usize) < n, "vertex out of range");
+        }
+        Self::from_sorted_unique_edges_unchecked(n, edges)
+    }
+
+    /// Internal builder — caller guarantees no self-loops and all vertices in range.
+    fn from_sorted_unique_edges_unchecked(n: usize, edges: &[(u32, u32)]) -> Self {
+        let mut deg = vec![0usize; n];
+        for &(u, v) in edges {
+            deg[u as usize] += 1;
+            deg[v as usize] += 1;
+        }
+        // Build offsets via prefix sum with running scalar (avoids iterator adaptor).
+        let mut offsets = Vec::with_capacity(n + 1);
+        let mut running = 0usize;
+        offsets.push(0);
+        for &d in &deg {
+            running += d;
+            offsets.push(running);
+        }
+        // Fill flat targets using write cursors (reuse deg allocation).
+        let mut targets = vec![0u32; running];
+        let mut cursor = deg;
+        cursor.copy_from_slice(&offsets[..n]);
+        for &(u, v) in edges {
+            targets[cursor[u as usize]] = v;
+            cursor[u as usize] += 1;
+            targets[cursor[v as usize]] = u;
+            cursor[v as usize] += 1;
+        }
+        CsrGraph {
+            nv: n,
+            ne: edges.len(),
+            offsets,
+            targets,
+        }
+    }
+}
+
+/// Incremental builder for [`CsrGraph`]. Collects edges one at a time,
+/// then builds the CSR representation in a single pass.
+///
+/// # Examples
+///
+/// ```
+/// use simple_graph::CsrBuilder;
+///
+/// let mut builder = CsrBuilder::new(4);
+/// builder.add_edge(0, 1);
+/// builder.add_edge(1, 2);
+/// builder.add_edge(2, 3);
+/// let csr = builder.build();
+/// assert_eq!(csr.nv(), 4);
+/// assert_eq!(csr.ne(), 3);
+/// assert!(csr.has_edge(0, 1));
+/// ```
+pub struct CsrBuilder {
+    nv: usize,
+    edges: Vec<(u32, u32)>,
+}
+
+impl CsrBuilder {
+    /// Create a builder for a graph with `nv` vertices.
+    pub fn new(nv: usize) -> Self {
+        CsrBuilder {
+            nv,
+            edges: Vec::new(),
+        }
+    }
+
+    /// Create a builder with pre-allocated edge capacity.
+    pub fn with_capacity(nv: usize, edge_capacity: usize) -> Self {
+        CsrBuilder {
+            nv,
+            edges: Vec::with_capacity(edge_capacity),
+        }
+    }
+
+    /// Add an undirected edge. Duplicates are collapsed during `build()`.
+    ///
+    /// # Panics
+    /// Panics on self-loops or out-of-range vertices.
+    pub fn add_edge(&mut self, u: u32, v: u32) {
+        assert_ne!(u, v, "self-loops not allowed");
+        assert!(
+            (u as usize) < self.nv && (v as usize) < self.nv,
+            "vertex out of range"
+        );
+        let (u, v) = if u < v { (u, v) } else { (v, u) };
+        self.edges.push((u, v));
+    }
+
+    /// Build the CsrGraph. Sorts and deduplicates edges.
+    pub fn build(mut self) -> CsrGraph {
+        let already_sorted = self.edges.windows(2).all(|w| w[0] <= w[1]);
+        if !already_sorted {
+            self.edges.sort_unstable();
+        }
+        self.edges.dedup();
+        CsrGraph::from_sorted_unique_edges(self.nv, &self.edges)
+    }
+}
+
 impl From<&SimpleGraph> for CsrGraph {
     fn from(sg: &SimpleGraph) -> Self {
         let n = sg.nv();
         let mut offsets = Vec::with_capacity(n + 1);
-        let total: usize = (0..n).map(|v| sg.neighbors(v as u32).len()).sum();
-        let mut targets = Vec::with_capacity(total);
+        // 2*ne is the total number of directed edges — avoids an extra scan.
+        let mut targets = Vec::with_capacity(sg.ne() * 2);
         let mut offset = 0;
         for v in 0..n {
             offsets.push(offset);
@@ -162,6 +300,7 @@ impl From<&SimpleGraph> for CsrGraph {
         }
         offsets.push(offset);
         CsrGraph {
+            nv: n,
             ne: sg.ne(),
             offsets,
             targets,

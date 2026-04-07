@@ -23,7 +23,7 @@ pub struct Dfs<'a, G: Graph + ?Sized> {
 pub fn dfs<G: Graph>(graph: &G, source: u32) -> Dfs<'_, G> {
     let n = graph.nv();
     let mut visited = vec![false; n];
-    let mut stack = Vec::new();
+    let mut stack = Vec::with_capacity(n);
     if graph.has_vertex(source) {
         visited[source as usize] = true;
         stack.push(source);
@@ -37,6 +37,7 @@ pub fn dfs<G: Graph>(graph: &G, source: u32) -> Dfs<'_, G> {
 
 impl<'a, G: Graph + ?Sized> Iterator for Dfs<'a, G> {
     type Item = u32;
+    #[inline]
     fn next(&mut self) -> Option<u32> {
         let u = self.stack.pop()?;
         // Iterate neighbors in reverse so that the smallest neighbor

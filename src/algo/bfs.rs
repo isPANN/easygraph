@@ -1,10 +1,10 @@
 use crate::graph::Graph;
-use std::collections::VecDeque;
 
 /// BFS iterator from a source vertex.
 pub struct Bfs<'a, G: Graph + ?Sized> {
     graph: &'a G,
-    queue: VecDeque<u32>,
+    queue: Vec<u32>,
+    head: usize,
     visited: Vec<bool>,
 }
 
@@ -24,26 +24,32 @@ pub struct Bfs<'a, G: Graph + ?Sized> {
 pub fn bfs<G: Graph>(graph: &G, source: u32) -> Bfs<'_, G> {
     let n = graph.nv();
     let mut visited = vec![false; n];
-    let mut queue = VecDeque::new();
+    let mut queue = Vec::with_capacity(n);
     if graph.has_vertex(source) {
         visited[source as usize] = true;
-        queue.push_back(source);
+        queue.push(source);
     }
     Bfs {
         graph,
         queue,
+        head: 0,
         visited,
     }
 }
 
 impl<'a, G: Graph + ?Sized> Iterator for Bfs<'a, G> {
     type Item = u32;
+    #[inline]
     fn next(&mut self) -> Option<u32> {
-        let u = self.queue.pop_front()?;
+        if self.head >= self.queue.len() {
+            return None;
+        }
+        let u = self.queue[self.head];
+        self.head += 1;
         for &v in self.graph.neighbors(u) {
             if !self.visited[v as usize] {
                 self.visited[v as usize] = true;
-                self.queue.push_back(v);
+                self.queue.push(v);
             }
         }
         Some(u)
@@ -87,19 +93,23 @@ pub fn is_connected<G: Graph>(graph: &G) -> bool {
 pub fn connected_components<G: Graph>(graph: &G) -> Vec<u32> {
     let n = graph.nv();
     let mut labels = vec![u32::MAX; n];
-    let mut queue = VecDeque::new();
+    let mut queue = Vec::with_capacity(n);
     let mut component = 0u32;
     for start in 0..n as u32 {
         if labels[start as usize] != u32::MAX {
             continue;
         }
         labels[start as usize] = component;
-        queue.push_back(start);
-        while let Some(u) = queue.pop_front() {
+        queue.clear();
+        queue.push(start);
+        let mut head = 0usize;
+        while head < queue.len() {
+            let u = queue[head];
+            head += 1;
             for &v in graph.neighbors(u) {
                 if labels[v as usize] == u32::MAX {
                     labels[v as usize] = component;
-                    queue.push_back(v);
+                    queue.push(v);
                 }
             }
         }
