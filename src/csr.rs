@@ -473,5 +473,4 @@ mod tests {
         let sg2 = csr.to_simple_graph();
         assert_eq!(sg, sg2);
     }
-
 }
