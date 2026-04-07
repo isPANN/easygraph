@@ -1,22 +1,78 @@
 /// Read-only interface shared by all graph representations.
 pub trait Graph {
     /// Number of vertices.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simple_graph::{SimpleGraph, Graph};
+    ///
+    /// let g = SimpleGraph::new(5);
+    /// assert_eq!(g.nv(), 5);
+    /// ```
     fn nv(&self) -> usize;
     /// Number of edges.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simple_graph::{SimpleGraph, Graph};
+    ///
+    /// let g = SimpleGraph::from_edges(3, &[(0, 1), (1, 2)]);
+    /// assert_eq!(g.ne(), 2);
+    /// ```
     fn ne(&self) -> usize;
     /// Whether vertex `v` exists.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simple_graph::{SimpleGraph, Graph};
+    ///
+    /// let g = SimpleGraph::new(3);
+    /// assert!(g.has_vertex(0));
+    /// assert!(!g.has_vertex(3));
+    /// ```
     fn has_vertex(&self, v: u32) -> bool;
     /// Whether edge `(u, v)` exists.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simple_graph::{SimpleGraph, Graph};
+    ///
+    /// let g = SimpleGraph::from_edges(3, &[(0, 1)]);
+    /// assert!(g.has_edge(0, 1));
+    /// assert!(!g.has_edge(0, 2));
+    /// ```
     fn has_edge(&self, u: u32, v: u32) -> bool;
     /// Degree of vertex `v`.
     ///
     /// # Panics
     /// Panics if `v` is out of range. Use `has_vertex` to check first.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simple_graph::{SimpleGraph, Graph};
+    ///
+    /// let g = SimpleGraph::from_edges(3, &[(0, 1), (0, 2)]);
+    /// assert_eq!(g.degree(0), 2);
+    /// ```
     fn degree(&self, v: u32) -> usize;
     /// Sorted neighbor slice of vertex `v`.
     ///
     /// # Panics
     /// Panics if `v` is out of range. Use `has_vertex` to check first.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simple_graph::{SimpleGraph, Graph};
+    ///
+    /// let g = SimpleGraph::from_edges(3, &[(0, 2), (0, 1)]);
+    /// assert_eq!(g.neighbors(0), &[1, 2]); // sorted
+    /// ```
     fn neighbors(&self, v: u32) -> &[u32];
 
     /// Graph density: `ne / (nv choose 2)`. Returns 0.0 for graphs with < 2 vertices.
@@ -82,11 +138,29 @@ pub trait Graph {
 }
 
 /// Graph density: `ne / (nv choose 2)`. Returns 0.0 for graphs with < 2 vertices.
+///
+/// # Examples
+///
+/// ```
+/// use simple_graph::{SimpleGraph, density};
+///
+/// let g = SimpleGraph::from_edges(3, &[(0, 1), (1, 2), (0, 2)]);
+/// assert!((density(&g) - 1.0).abs() < 1e-10);
+/// ```
 pub fn density(g: &impl Graph) -> f64 {
     g.density()
 }
 
 /// Sorted degree sequence (ascending).
+///
+/// # Examples
+///
+/// ```
+/// use simple_graph::{SimpleGraph, degree_sequence};
+///
+/// let g = SimpleGraph::from_edges(4, &[(0, 1), (0, 2), (0, 3)]);
+/// assert_eq!(degree_sequence(&g), vec![1, 1, 1, 3]);
+/// ```
 pub fn degree_sequence(g: &impl Graph) -> Vec<usize> {
     g.degree_sequence()
 }

@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 ///
 /// Returns a `Vec<Option<u32>>` of length `nv()`. `result[v]` is `Some(d)` if
 /// vertex `v` is reachable from `source` in `d` hops, or `None` if unreachable.
-/// `result[source]` is `Some(0)`.
+/// `result[source]` is `Some(0)`. If `source` is out of range, all entries are `None`.
 ///
 /// # Examples
 ///

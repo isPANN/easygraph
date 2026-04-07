@@ -9,6 +9,8 @@ pub struct Dfs<'a, G: Graph + ?Sized> {
 
 /// Return a DFS iterator starting from `source`.
 ///
+/// If `source` is out of range, the iterator yields no elements.
+///
 /// # Examples
 ///
 /// ```

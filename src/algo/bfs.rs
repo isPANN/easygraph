@@ -10,6 +10,8 @@ pub struct Bfs<'a, G: Graph + ?Sized> {
 
 /// Return a BFS iterator starting from `source`.
 ///
+/// If `source` is out of range, the iterator yields no elements.
+///
 /// # Examples
 ///
 /// ```
