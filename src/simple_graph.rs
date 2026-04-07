@@ -401,6 +401,12 @@ impl SimpleGraph {
 }
 
 impl SimpleGraph {
+    /// Internal constructor from pre-built sorted adjacency lists.
+    /// Caller must guarantee: lists are sorted, symmetric, no self-loops, ne is correct.
+    pub(crate) fn from_raw(ne: usize, fadjlist: Vec<Vec<u32>>) -> Self {
+        Self { ne, fadjlist }
+    }
+
     /// Fast internal constructor for edges that are already canonical (u < v),
     /// sorted, and unique. Skips sort+dedup. Used by generators and I/O readers.
     pub(crate) fn from_sorted_unique_edges(n: usize, edges: &[(u32, u32)]) -> Self {

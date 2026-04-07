@@ -11,14 +11,17 @@ use crate::SimpleGraph;
 /// assert_eq!(g.ne(), 6); // 4 choose 2
 /// ```
 pub fn complete(n: usize) -> SimpleGraph {
-    let mut edges = Vec::with_capacity(n * n.saturating_sub(1) / 2);
-    for u in 0..n as u32 {
-        for v in (u + 1)..n as u32 {
-            edges.push((u, v));
-        }
+    // Direct adjacency list construction: vertex v's neighbors are [0..v, v+1..n].
+    // Two branchless extends instead of a per-element branch.
+    let ne = n * n.saturating_sub(1) / 2;
+    let mut fadjlist = Vec::with_capacity(n);
+    for v in 0..n as u32 {
+        let mut nbrs = Vec::with_capacity(n - 1);
+        nbrs.extend(0..v);
+        nbrs.extend(v + 1..n as u32);
+        fadjlist.push(nbrs);
     }
-    // Edges are already canonical (u < v), sorted, and unique.
-    SimpleGraph::from_sorted_unique_edges(n, &edges)
+    SimpleGraph::from_raw(ne, fadjlist)
 }
 
 /// Cycle graph C_n (n >= 3).
