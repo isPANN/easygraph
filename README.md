@@ -1,6 +1,6 @@
 # easygraph
 
-[![CI](https://github.com/isPANN/simple-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/isPANN/simple-graph/actions/workflows/ci.yml)
+[![CI](https://github.com/isPANN/easygraph/actions/workflows/ci.yml/badge.svg)](https://github.com/isPANN/easygraph/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/easygraph.svg)](https://crates.io/crates/easygraph)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
