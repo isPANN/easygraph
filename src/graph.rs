@@ -20,6 +20,15 @@ pub trait Graph {
     fn neighbors(&self, v: u32) -> &[u32];
 
     /// Graph density: `ne / (nv choose 2)`. Returns 0.0 for graphs with < 2 vertices.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simple_graph::{SimpleGraph, Graph};
+    ///
+    /// let g = SimpleGraph::from_edges(4, &[(0, 1), (1, 2), (2, 3), (3, 0), (0, 2), (1, 3)]);
+    /// assert!((g.density() - 1.0).abs() < 1e-10);
+    /// ```
     fn density(&self) -> f64 {
         let n = self.nv();
         if n < 2 {
@@ -30,6 +39,15 @@ pub trait Graph {
     }
 
     /// Sorted degree sequence (ascending).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simple_graph::{SimpleGraph, Graph};
+    ///
+    /// let g = SimpleGraph::from_edges(4, &[(0, 1), (0, 2), (0, 3)]);
+    /// assert_eq!(g.degree_sequence(), vec![1, 1, 1, 3]);
+    /// ```
     fn degree_sequence(&self) -> Vec<usize> {
         let mut seq: Vec<usize> = (0..self.nv() as u32).map(|v| self.degree(v)).collect();
         seq.sort_unstable();

@@ -8,6 +8,16 @@ pub struct Dfs<'a, G: Graph + ?Sized> {
 }
 
 /// Return a DFS iterator starting from `source`.
+///
+/// # Examples
+///
+/// ```
+/// use simple_graph::{SimpleGraph, algo};
+///
+/// let g = SimpleGraph::from_edges(4, &[(0, 1), (1, 2), (2, 3)]);
+/// let order: Vec<u32> = algo::dfs(&g, 0).collect();
+/// assert_eq!(order.len(), 4);
+/// ```
 pub fn dfs<G: Graph>(graph: &G, source: u32) -> Dfs<'_, G> {
     let n = graph.nv();
     let mut visited = vec![false; n];

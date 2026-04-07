@@ -6,6 +6,16 @@ use std::collections::VecDeque;
 /// Returns a `Vec<Option<u32>>` of length `nv()`. `result[v]` is `Some(d)` if
 /// vertex `v` is reachable from `source` in `d` hops, or `None` if unreachable.
 /// `result[source]` is `Some(0)`.
+///
+/// # Examples
+///
+/// ```
+/// use simple_graph::{SimpleGraph, algo};
+///
+/// let g = SimpleGraph::from_edges(4, &[(0, 1), (1, 2), (2, 3)]);
+/// let dist = algo::shortest_path_lengths(&g, 0);
+/// assert_eq!(dist, vec![Some(0), Some(1), Some(2), Some(3)]);
+/// ```
 pub fn shortest_path_lengths<G: Graph>(graph: &G, source: u32) -> Vec<Option<u32>> {
     let n = graph.nv();
     let mut dist: Vec<Option<u32>> = vec![None; n];

@@ -66,6 +66,16 @@ impl SimpleGraph {
     ///
     /// # Panics
     /// Panics if `n > u32::MAX as usize`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simple_graph::SimpleGraph;
+    ///
+    /// let g = SimpleGraph::new(5);
+    /// assert_eq!(g.nv(), 5);
+    /// assert_eq!(g.ne(), 0);
+    /// ```
     pub fn new(n: usize) -> Self {
         assert!(n <= u32::MAX as usize, "vertex count exceeds u32::MAX");
         Self {
@@ -78,6 +88,16 @@ impl SimpleGraph {
     ///
     /// Duplicate edges are silently collapsed. Panics on self-loops or
     /// out-of-range vertices.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simple_graph::SimpleGraph;
+    ///
+    /// let g = SimpleGraph::from_edges(3, &[(0, 1), (1, 2)]);
+    /// assert_eq!(g.ne(), 2);
+    /// assert!(g.has_edge(0, 1));
+    /// ```
     pub fn from_edges(n: usize, edges: &[(u32, u32)]) -> Self {
         assert!(n <= u32::MAX as usize, "vertex count exceeds u32::MAX");
         let mut fadjlist: Vec<Vec<u32>> = vec![vec![]; n];
@@ -135,6 +155,17 @@ impl SimpleGraph {
     ///
     /// # Panics
     /// Panics on self-loops or if a vertex is out of range.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simple_graph::SimpleGraph;
+    ///
+    /// let mut g = SimpleGraph::new(3);
+    /// g.add_edge(0, 1);
+    /// assert!(g.has_edge(0, 1));
+    /// assert!(g.has_edge(1, 0)); // undirected
+    /// ```
     pub fn add_edge(&mut self, u: u32, v: u32) {
         assert_ne!(u, v, "self-loops not allowed");
         assert!(
@@ -176,6 +207,16 @@ impl SimpleGraph {
     }
 
     /// Iterator over all edges `(u, v)` with `u < v`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simple_graph::SimpleGraph;
+    ///
+    /// let g = SimpleGraph::from_edges(3, &[(0, 1), (1, 2)]);
+    /// let edges: Vec<_> = g.edges().collect();
+    /// assert_eq!(edges, vec![(0, 1), (1, 2)]);
+    /// ```
     pub fn edges(&self) -> crate::iter::Edges<'_, Self> {
         crate::iter::edges(self)
     }
