@@ -47,3 +47,63 @@ jobs:
         with:
           files: codecov.json
           fail_ci_if_error: false
+
+  docs:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo doc --all-features --no-deps
+        env:
+          RUSTDOCFLAGS: "--cfg docsrs"
+      - run: echo '<meta http-equiv="refresh" content="0;url=simple_graph/index.html">' > target/doc/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: target/doc
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+  bench:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo bench --bench benchmarks -- --output-format bencher | tee bench-output.txt
+      - name: Comment benchmark results on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('bench-output.txt', 'utf8');
+            const body = `## Benchmark Results\n\n\`\`\`\n${output}\n\`\`\`\n`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.startsWith('## Benchmark Results'));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
