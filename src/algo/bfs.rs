@@ -24,7 +24,7 @@ pub struct Bfs<'a, G: Graph + ?Sized> {
 pub fn bfs<G: Graph>(graph: &G, source: u32) -> Bfs<'_, G> {
     let n = graph.nv();
     let mut visited = vec![false; n];
-    let mut queue = Vec::new();
+    let mut queue = Vec::with_capacity(n);
     if graph.has_vertex(source) {
         visited[source as usize] = true;
         queue.push(source);
@@ -39,6 +39,7 @@ pub fn bfs<G: Graph>(graph: &G, source: u32) -> Bfs<'_, G> {
 
 impl<'a, G: Graph + ?Sized> Iterator for Bfs<'a, G> {
     type Item = u32;
+    #[inline]
     fn next(&mut self) -> Option<u32> {
         if self.head >= self.queue.len() {
             return None;
@@ -92,7 +93,7 @@ pub fn is_connected<G: Graph>(graph: &G) -> bool {
 pub fn connected_components<G: Graph>(graph: &G) -> Vec<u32> {
     let n = graph.nv();
     let mut labels = vec![u32::MAX; n];
-    let mut queue = Vec::new();
+    let mut queue = Vec::with_capacity(n);
     let mut component = 0u32;
     for start in 0..n as u32 {
         if labels[start as usize] != u32::MAX {

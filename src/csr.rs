@@ -169,22 +169,31 @@ impl CsrGraph {
     /// assert_eq!(csr.ne(), 2);
     /// ```
     pub fn from_sorted_unique_edges(n: usize, edges: &[(u32, u32)]) -> Self {
-        let mut deg = vec![0usize; n];
+        // Validate upfront — keep asserts out of the hot counting/filling loops.
         for &(u, v) in edges {
             assert_ne!(u, v, "self-loops not allowed");
             assert!((u as usize) < n && (v as usize) < n, "vertex out of range");
+        }
+        Self::from_sorted_unique_edges_unchecked(n, edges)
+    }
+
+    /// Internal builder — caller guarantees no self-loops and all vertices in range.
+    fn from_sorted_unique_edges_unchecked(n: usize, edges: &[(u32, u32)]) -> Self {
+        let mut deg = vec![0usize; n];
+        for &(u, v) in edges {
             deg[u as usize] += 1;
             deg[v as usize] += 1;
         }
-        // Build offsets via prefix sum
+        // Build offsets via prefix sum with running scalar (avoids iterator adaptor).
         let mut offsets = Vec::with_capacity(n + 1);
-        offsets.push(0usize);
+        let mut running = 0usize;
+        offsets.push(0);
         for &d in &deg {
-            offsets.push(offsets.last().unwrap() + d);
+            running += d;
+            offsets.push(running);
         }
-        // Fill flat targets using write cursors (reuse deg allocation)
-        let total = offsets[n];
-        let mut targets = vec![0u32; total];
+        // Fill flat targets using write cursors (reuse deg allocation).
+        let mut targets = vec![0u32; running];
         let mut cursor = deg;
         cursor.copy_from_slice(&offsets[..n]);
         for &(u, v) in edges {

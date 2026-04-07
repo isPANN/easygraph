@@ -37,6 +37,7 @@ pub fn edges<G: Graph>(graph: &G) -> Edges<'_, G> {
 
 impl<'a, G: Graph + ?Sized> Edges<'a, G> {
     /// Load the neighbor slice for the current vertex and skip neighbors ≤ `self.u`.
+    #[inline]
     fn advance_vertex(&mut self) {
         if self.u < self.nv {
             self.nbrs = self.graph.neighbors(self.u);
@@ -48,6 +49,7 @@ impl<'a, G: Graph + ?Sized> Edges<'a, G> {
 impl<'a, G: Graph + ?Sized> Iterator for Edges<'a, G> {
     type Item = (u32, u32);
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         while self.u < self.nv {
             if self.idx < self.nbrs.len() {

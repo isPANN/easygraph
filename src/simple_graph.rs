@@ -100,11 +100,14 @@ impl SimpleGraph {
     /// ```
     pub fn from_edges(n: usize, edges: &[(u32, u32)]) -> Self {
         assert!(n <= u32::MAX as usize, "vertex count exceeds u32::MAX");
-        // Pre-compute degrees for capacity pre-allocation — avoids reallocs.
-        let mut deg = vec![0usize; n];
+        // Validate upfront — keep asserts out of the hot counting/filling loops.
         for &(u, v) in edges {
             assert_ne!(u, v, "self-loops not allowed");
             assert!((u as usize) < n && (v as usize) < n, "vertex out of range");
+        }
+        // Pre-compute degrees for capacity pre-allocation — avoids reallocs.
+        let mut deg = vec![0usize; n];
+        for &(u, v) in edges {
             deg[u as usize] += 1;
             deg[v as usize] += 1;
         }
