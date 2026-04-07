@@ -17,7 +17,8 @@ pub fn complete(n: usize) -> SimpleGraph {
             edges.push((u, v));
         }
     }
-    SimpleGraph::from_edges(n, &edges)
+    // Edges are already canonical (u < v), sorted, and unique.
+    SimpleGraph::from_sorted_unique_edges(n, &edges)
 }
 
 /// Cycle graph C_n (n >= 3).
@@ -58,7 +59,7 @@ pub fn path(n: usize) -> SimpleGraph {
         return SimpleGraph::new(n);
     }
     let edges: Vec<(u32, u32)> = (0..n as u32 - 1).map(|i| (i, i + 1)).collect();
-    SimpleGraph::from_edges(n, &edges)
+    SimpleGraph::from_sorted_unique_edges(n, &edges)
 }
 
 /// 2D grid graph with `rows` x `cols` vertices.
@@ -89,7 +90,8 @@ pub fn grid_2d(rows: usize, cols: usize) -> SimpleGraph {
             }
         }
     }
-    SimpleGraph::from_edges(n, &edges)
+    // Edges are canonical (u < v), sorted by construction, and unique.
+    SimpleGraph::from_sorted_unique_edges(n, &edges)
 }
 
 #[cfg(test)]

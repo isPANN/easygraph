@@ -1,5 +1,6 @@
 use crate::graph::Graph;
-use std::collections::VecDeque;
+
+const UNREACHABLE: u32 = u32::MAX;
 
 /// Compute unweighted shortest-path distances from `source` to all reachable vertices.
 ///
@@ -18,23 +19,30 @@ use std::collections::VecDeque;
 /// ```
 pub fn shortest_path_lengths<G: Graph>(graph: &G, source: u32) -> Vec<Option<u32>> {
     let n = graph.nv();
-    let mut dist: Vec<Option<u32>> = vec![None; n];
+    // Use u32 sentinel internally (4 bytes vs 8 for Option<u32>) for cache efficiency.
+    let mut dist = vec![UNREACHABLE; n];
     if !graph.has_vertex(source) {
-        return dist;
+        return vec![None; n];
     }
-    dist[source as usize] = Some(0);
-    let mut queue = VecDeque::new();
-    queue.push_back(source);
-    while let Some(u) = queue.pop_front() {
-        let d = dist[u as usize].unwrap();
+    dist[source as usize] = 0;
+    // Flat Vec + head pointer instead of VecDeque — BFS queues are monotonic.
+    let mut queue = Vec::with_capacity(n);
+    let mut head = 0usize;
+    queue.push(source);
+    while head < queue.len() {
+        let u = queue[head];
+        head += 1;
+        let next_d = dist[u as usize] + 1;
         for &v in graph.neighbors(u) {
-            if dist[v as usize].is_none() {
-                dist[v as usize] = Some(d + 1);
-                queue.push_back(v);
+            if dist[v as usize] == UNREACHABLE {
+                dist[v as usize] = next_d;
+                queue.push(v);
             }
         }
     }
-    dist
+    dist.into_iter()
+        .map(|d| if d == UNREACHABLE { None } else { Some(d) })
+        .collect()
 }
 
 #[cfg(test)]

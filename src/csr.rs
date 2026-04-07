@@ -8,6 +8,7 @@ use crate::SimpleGraph;
 /// per vertex, ideal for read-heavy scientific workloads.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CsrGraph {
+    nv: usize,
     ne: usize,
     pub(crate) offsets: Vec<usize>,
     pub(crate) targets: Vec<u32>,
@@ -27,11 +28,7 @@ impl CsrGraph {
     /// ```
     #[inline]
     pub fn nv(&self) -> usize {
-        if self.offsets.is_empty() {
-            0
-        } else {
-            self.offsets.len() - 1
-        }
+        self.nv
     }
 
     /// Number of edges.
@@ -81,6 +78,12 @@ impl CsrGraph {
         if !self.has_vertex(u) || !self.has_vertex(v) {
             return false;
         }
+        // Search the shorter neighbor list for O(log min(d(u), d(v))).
+        let (u, v) = if self.degree(u) <= self.degree(v) {
+            (u, v)
+        } else {
+            (v, u)
+        };
         self.neighbors(u).binary_search(&v).is_ok()
     }
 
@@ -151,8 +154,8 @@ impl From<&SimpleGraph> for CsrGraph {
     fn from(sg: &SimpleGraph) -> Self {
         let n = sg.nv();
         let mut offsets = Vec::with_capacity(n + 1);
-        let total: usize = (0..n).map(|v| sg.neighbors(v as u32).len()).sum();
-        let mut targets = Vec::with_capacity(total);
+        // 2*ne is the total number of directed edges — avoids an extra scan.
+        let mut targets = Vec::with_capacity(sg.ne() * 2);
         let mut offset = 0;
         for v in 0..n {
             offsets.push(offset);
@@ -162,6 +165,7 @@ impl From<&SimpleGraph> for CsrGraph {
         }
         offsets.push(offset);
         CsrGraph {
+            nv: n,
             ne: sg.ne(),
             offsets,
             targets,
