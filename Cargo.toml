@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "Lightweight undirected graph with sorted adjacency lists, modeled on Graphs.jl"
+repository = "https://github.com/isPANN/simple-graph"
+keywords = ["graph", "undirected", "adjacency-list", "csr", "algorithms"]
+categories = ["algorithms", "data-structures", "science"]
+rust-version = "1.70"
 
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
